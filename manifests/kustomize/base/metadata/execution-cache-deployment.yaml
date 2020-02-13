@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: execution-cache-server
+  namespace: execution-cache
+  labels:
+    app: execution-cache-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: execution-cache-server
+  template:
+    metadata:
+      labels:
+        app: execution-cache-server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1234
+      containers:
+      - name: server
+        image: ruifang1479/rui-admission-controller:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8443
+          name: webhook-api
+        volumeMounts:
+        - name: webhook-tls-certs
+          mountPath: /run/secrets/tls
+          readOnly: true
+      volumes:
+      - name: webhook-tls-certs
+        secret:
+          secretName: webhook-server-tls

@@ -12,3 +12,6 @@ resources:
   - metadata-writer-role.yaml
   - metadata-writer-rolebinding.yaml
   - metadata-writer-sa.yaml
+  - execution-cache-deployment.yaml
+  - execution-cache-service.yaml
+  - execution-cache-configmap.yaml

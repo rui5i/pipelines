@@ -1,0 +1,17 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: cache-webhook
+webhooks:
+  - name: execution-cache-server.execution-cache.svc
+    clientConfig:
+      service:
+        name: execution-cache-server
+        namespace: execution-cache
+        path: "/mutate"
+      caBundle: ${CA_PEM_B64}
+    rules:
+      - operations: [ "CREATE" ]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
