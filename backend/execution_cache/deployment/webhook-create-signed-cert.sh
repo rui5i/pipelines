@@ -50,6 +50,8 @@ if [ ! -x "$(command -v openssl)" ]; then
     exit 1
 fi
 
+kubectl create namespace ${namespace}
+
 csrName=${service}.${namespace}
 tmpdir=$(mktemp -d)
 echo "creating certs in tmpdir ${tmpdir} "
