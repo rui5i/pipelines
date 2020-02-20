@@ -253,3 +253,186 @@ metadata:
   name: kubeflow-pipelines-metadata-writer
   labels:
     app.kubernetes.io/name: {{ .Release.Name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: execution-cache-server
+  labels:
+    app: execution-cache-server
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: execution-cache-server
+      app.kubernetes.io/name: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: execution-cache-server
+        app.kubernetes.io/name: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: server
+        image: {{ .Values.images.executioncache }}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8443
+          name: webhook-api
+        volumeMounts:
+        - name: webhook-tls-certs
+          mountPath: /etc/webhook/certs
+          readOnly: true
+      volumes:
+      - name: webhook-tls-certs
+        secret:
+          secretName: webhook-server-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: execution-cache-server
+  labels:
+    app: execution-cache-server
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  selector:
+    app: execution-cache-server
+    app.kubernetes.io/name: {{ .Release.Name }}
+  ports:
+    - port: 443
+      targetPort: webhook-api
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: kubeflow-pipelines-execution-cache-deployer-clusterrole
+    app.kubernetes.io/name: {{ .Release.Name }}
+  name: kubeflow-pipelines-execution-cache-deployer-clusterrole
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - "*"
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - extensions
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - create
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - create
+  - list
+  - watch
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  - certificatesigningrequests/approval
+  verbs:
+  - create
+  - get
+  - update
+  - watch
+  - delete
+  - patch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeflow-pipelines-execution-cache-deployer-sa
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeflow-pipelines-execution-cache-deployer-clusterrolebinding
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubeflow-pipelines-execution-cache-deployer-clusterrole
+subjects:
+- kind: ServiceAccount
+  name: kubeflow-pipelines-execution-cache-deployer-sa
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: execution-cache-deployer-job
+  labels:
+    app: execution-cache-deployer
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: execution-cache-deployer
+        app.kubernetes.io/name: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: main
+        image: {{ .Values.images.executioncachedeployer }}
+        imagePullPolicy: Always
+        env:
+          - name: NAMESPACE_TO_WATCH
+            value: {{ .Release.Namespace }}
+      serviceAccountName: kubeflow-pipelines-execution-cache-deployer-sa
+      restartPolicy: OnFailure
