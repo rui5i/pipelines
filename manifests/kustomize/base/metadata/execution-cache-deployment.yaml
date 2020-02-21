@@ -16,8 +16,13 @@ spec:
     spec:
       containers:
       - name: server
-        image: gcr.io/ml-pipeline-test/execution_cache:test
+        image: gcr.io/ml-pipeline-test/execution_cache:redis
         imagePullPolicy: Always
+        env:
+          - name: REDIS_HOST
+            value: redis-master
+          - name: REDIS_PORT
+            value: "6379"
         ports:
         - containerPort: 8443
           name: webhook-api

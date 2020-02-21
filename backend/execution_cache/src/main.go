@@ -17,7 +17,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
+
+	"github.com/go-redis/redis"
 )
 
 const (
@@ -27,8 +30,16 @@ const (
 )
 
 const (
-	MutateApi   string = "/mutate"
-	WebhookPort string = ":8443"
+	MutateApi        string = "/mutate"
+	WebhookPort      string = ":8443"
+	DefaultRedisHost string = "localhost"
+	DefaultRedisPort string = "6379"
+)
+
+var (
+	redisHost     = getEnv("REDIS_HOST", DefaultRedisHost)
+	redisPort     = getEnv("REDIS_PORT", DefaultRedisPort)
+	redisPassword = ""
 )
 
 func main() {
@@ -43,5 +54,30 @@ func main() {
 		Addr:    WebhookPort,
 		Handler: mux,
 	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisHost + ":" + redisPort,
+		Password: redisPassword,
+		DB:       0,
+	})
+
+	// Test redis
+	err := redisClient.Set("testKey", "testValue", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+	val, _ := redisClient.Get("testKey").Result()
+	log.Println(val)
+	pong, err := redisClient.Ping().Result()
+	log.Println(pong, err)
+
 	log.Fatal(server.ListenAndServeTLS(certPath, keyPath))
+}
+
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }
